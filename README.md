@@ -3,4 +3,6 @@
 
 Standard Arena Allocator written in c.
 
-Unit test available and compiled using `make`.
+Unit test(s) available to compile and run using `make`.
+
+Dependent on standard libc.
