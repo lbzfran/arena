@@ -13,13 +13,15 @@ Arena* arena = (Arena*)malloc(sizeof(Arena));
 ArenaAlloc(local_arena, 1024); // 1 Kilobyte.
 
 /* Get a pointer from the arena with specified size. */
-unsigned int x = (unsigned int*)ArenaPush(arena, sizeof(unsigned int));
+unsigned int x = (unsigned int *)ArenaPush(arena, sizeof(unsigned int));
 
 /* You may also use this macro for convenience. */
 unsigned int y = PushStruct(arena, unsigned int);
 
 /* Allocate Arrays using the arena. */
 int **z = PushArray(arena, int, 64); // int array of size 64.
+// equivalent to:
+// int **z = (int **)ArenaPush(arena, sizeof(int)*64);
 
 /* Set new allocations to 0 (memset). */
 int *a = PushStructZero(arena, int);
