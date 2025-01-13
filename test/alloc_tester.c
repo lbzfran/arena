@@ -1,5 +1,5 @@
 
-#include "alloc.h"
+#include "../include/alloc.h"
 
 /*void CheckExpression(const char* prompt, bool expression) {*/
 /*    printf("TEST: %s. %s\n", prompt, expression ? "OK" : "FAIL");*/
@@ -8,7 +8,7 @@
 #define CheckExpr(prompt, expression) printf("TEST: %s. %s\n", (prompt), (expression) ? "OK" : "FAIL");
 
 int main(void) {
-    printf("Testing my custom Arena Allocator.");
+    printf("Testing my custom Arena Allocator.\n");
     Arena* local_arena = (Arena*)malloc(sizeof(struct memory_arena));
     CheckExpr("Byte Check", Kilobytes(1) == 1024 AND Megabytes(1) == 1048576);
     ArenaAlloc(local_arena, Kilobytes(2));

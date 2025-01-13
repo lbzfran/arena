@@ -1,8 +1,8 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include "alloc.h"
-#include "base.h"
+#include "../include/alloc.h"
+#include "../include/base.h"
 
 // NOTE(liam): does not inherently allocate memory.
 // Must be performed as user sees fit before call.
@@ -38,25 +38,20 @@ void* ArenaPushZero(Arena* arena, memory_index size) {
     return(res);
 }
 
-// pop some bytes off the 'stack' - the way to free
-void ArenaPop(Arena *arena, memory_index size) {
-    //TODO(liam): fix this
-    Assert(arena->pos - size >= 0, "");
+//TODO(liam): finish implementation
+/*void ArenaPop(Arena *arena, memory_index size) {*/
+/*}*/
 
-}
-
-// get the # of bytes currently allocated.
 uint64 ArenaGetPos(Arena *arena) {
     return(arena->pos);
 }
 
-// also some useful popping helpers:
 void ArenaSetPos(Arena *arena, memory_index pos) {
     Assert(pos <= arena->pos, "Setting position beyond current arena allocation.");
     arena->pos = pos;
 }
 
-// effectively resets the Arena.
+// NOTE(liam): effectively resets the Arena.
 void ArenaClear(Arena *arena) {
     arena->pos = 0;
     arena->tempCount = 0;
