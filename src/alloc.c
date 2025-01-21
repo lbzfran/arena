@@ -6,17 +6,40 @@
 
 // NOTE(liam): does not inherently allocate memory.
 // Must be performed as user sees fit before call.
-void ArenaAlloc(Arena* arena, memory_index size) {
+void
+ArenaAlloc(Arena* arena, memory_index size, uint8* base_addr)
+{
     arena->size = size;
     arena->pos = 0;
-    arena->base = malloc(size);
+    arena->base = base_addr;
+    if (!base_addr) {
+        // NOTE(liam): if NULL, auto-generate memory using malloc.
+        arena->base = a_malloc(size);
+    }
     arena->tempCount = 0;
 }
 
-void ArenaFree(Arena* arena) {
+// NOTE(liam): convenience arena wrapper that uses
+// malloc implementation defined by user (or stdlib).
+Arena*
+ArenaMalloc(memory_index size)
+{
+    Arena* arena = (Arena*)a_malloc(size);
+    ArenaAlloc(arena, size, (uint8*)a_malloc(size));
+
+    return(arena);
+}
+
+// NOTE(liam): this can be potentially skipped if you're
+// using other forms of memory allocation (VirtualAlloc, mmap).
+// A good way to check if you need it is if you used the
+// ArenaMalloc function for allocation.
+void
+ArenaFree(Arena* arena)
+{
     if (arena) {
-        free(arena->base);
-        free(arena);
+        a_free(arena->base);
+        a_free(arena);
     }
 }
 

@@ -3,6 +3,11 @@
 
 #include "base.h"
 
+#include <stdlib.h>
+#define a_malloc malloc
+#define a_realloc realloc
+#define a_free free
+
 typedef struct memory_arena {
     memory_index size;
     uint8* base;
@@ -16,7 +21,8 @@ typedef struct memory_arena_temp {
     memory_index pos;
 } ArenaTemp;
 
-void ArenaAlloc(Arena* arena, memory_index);
+void ArenaAlloc(Arena*, memory_index, uint8*);
+Arena* ArenaMalloc(memory_index size);
 void ArenaFree(Arena*);
 
 void* ArenaPush(Arena*, memory_index);
