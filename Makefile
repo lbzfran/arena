@@ -15,7 +15,7 @@ run: compile
 	./build/$(BIN)
 
 compile:
-	cc -o $(BUILD)/$(BIN) $(TEST)/alloc_tester.c $(SRC)/alloc.c $(FLAGS)
+	cc -o $(BUILD)/$(BIN) $(TEST)/alloc_tester.c $(FLAGS)
 
 clean:
 	rm -f $(BUILD)/*

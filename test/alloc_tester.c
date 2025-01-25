@@ -1,6 +1,10 @@
 
-#include "../include/alloc.h"
+#define ARENA_IMPLEMENTATION
+#include "../arena.h"
 
+#define AND &&
+#define OR ||
+#define NOT !
 /*void CheckExpression(const char* prompt, bool expression) {*/
 /*    printf("TEST: %s. %s\n", prompt, expression ? "OK" : "FAIL");*/
 /*}*/
