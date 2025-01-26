@@ -9,17 +9,24 @@
 /*    printf("TEST: %s. %s\n", prompt, expression ? "OK" : "FAIL");*/
 /*}*/
 
-#define CheckExpr(prompt, expression) printf("TEST: %s. %s\n", (prompt), (expression) ? "OK" : "FAIL");
+#define CheckExpr(prompt, expression) printf("TEST: %s. %s\n", (prompt), (expression) ? "OK" : "FAIL")
+#define PrintAddr(x) printf("%s = %p.\n", #x, (void*)(x))
 
 int main(void) {
     printf("Testing my custom Arena Allocator.\n");
     CheckExpr("Byte Check", Kilobytes(1) == 1024 AND Megabytes(1) == 1048576);
 
     Arena* local_arena = ArenaMalloc(Kilobytes(2));
+
     CheckExpr("Arena Allocation", local_arena);
 
-    int16* t1_a = PushStruct(local_arena, int16);
-    int16* t1_b = PushStructZero(local_arena, int16);
+    int16* t1_a = PushStruct(local_arena, int16, 0);
+    int16* t1_b = PushStruct(local_arena, int16, 0);
+
+    PrintAddr(&t1_a);
+    PrintAddr(&t1_b);
+
+
     CheckExpr("Initial Arena Allocation", NOT (*t1_a));
     CheckExpr("Initial Zeroed Arena Allocation", (*t1_b) == 0);
 
@@ -27,17 +34,20 @@ int main(void) {
     CheckExpr("Assignment to Arena Allocations", (*t1_b == 14));
     CheckExpr("Arena Memory Alignment during Assignment with same type", (*t1_a != 14));
 
+    PrintAddr(&t1_a);
+    PrintAddr(&t1_b);
+
 
     /*printf("allocated after assign: %d\n", (*x));*/
-    int32* t2_a = PushStructZero(local_arena, int32);
-    int16* t2_b = PushStruct(local_arena, int16);
-    int8* t2_c = PushStructZero(local_arena, int8);
-    int8* t2_d = PushStruct(local_arena, int8);
-    int16* t2_e = PushStructZero(local_arena, int16);
-    int8* t2_f = PushStructZero(local_arena, int8);
-    int16* t2_g = PushStruct(local_arena, int16);
-    int8* t2_h = PushStructZero(local_arena, int8);
-    int8* t2_i = PushStructZero(local_arena, int8);
+    int32* t2_a = PushStruct(local_arena, int32, 4);
+    int16* t2_b = PushStruct(local_arena, int16, 2);
+    int8* t2_c = PushStruct(local_arena, int8, 1);
+    int8* t2_d = PushStruct(local_arena, int8, 1);
+    int16* t2_e = PushStruct(local_arena, int16, 2);
+    int8* t2_f = PushStruct(local_arena, int8, 1);
+    int16* t2_g = PushStruct(local_arena, int16, 2);
+    int8* t2_h = PushStruct(local_arena, int8, 1);
+    int8* t2_i = PushStruct(local_arena, int8, 1);
 
     CheckExpr("Multiple Arena Allocations with different types", local_arena->pos == 19);
 
@@ -61,13 +71,13 @@ int main(void) {
     memory_index t3_pos_before = local_arena->pos;
     ArenaTemp cow = GetScratch(local_arena);
 
-    PushStruct(local_arena, int64);
-    PushStruct(local_arena, int64);
-    PushStructZero(local_arena, int32);
-    PushStruct(local_arena, int64);
-    PushStruct(local_arena, int32);
-    PushStructZero(local_arena, int64);
-    PushStruct(local_arena, int32);
+    PushStruct(local_arena, int64, 8);
+    PushStruct(local_arena, int64, 8);
+    PushStruct(local_arena, int32, 4);
+    PushStruct(local_arena, int64, 8);
+    PushStruct(local_arena, int32, 4);
+    PushStruct(local_arena, int64, 8);
+    PushStruct(local_arena, int32, 4);
 
     FreeScratch(cow);
     CheckExpr("Recover Position after Allocating and Freeing Scratch Arena", local_arena->pos == t3_pos_before);

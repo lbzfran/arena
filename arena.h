@@ -1,11 +1,15 @@
 /*
  * ---------------
  * Liam Bagabag
- * Version: 1.0.1
+ * Version: 2.0.0
+ * Requires: none (inline)
  * ---------------
  */
 #ifndef ARENA_H
 #define ARENA_H
+
+// PLATFORM-INDEPENDENT LAYER
+#include "platform.h"
 
 // DEFINE YOUR OWN MALLOC HERE.
 #include <stdlib.h>
@@ -13,45 +17,16 @@
 #define a_realloc realloc
 #define a_free free
 
-// PLATFORM-INDEPENDENT LAYER
-# include <stdio.h>
-# include <stdint.h>
-typedef uint8_t     uint8;  // unsigned char
-typedef uint16_t    uint16; // unsigned int
-typedef uint32_t    uint32; // unsigned long int
-typedef uint64_t    uint64; // unsigned long long int
+typedef struct memory_block_footer {
 
-typedef int8_t      int8;  // signed char
-typedef int16_t     int16; // signed int
-typedef int32_t     int32; // signed long int
-typedef int64_t     int64; // signed long long int
-
-typedef size_t      memory_index;
-
-# define ArrayCount(a) (sizeof(a)/sizeof(*(a)))
-
-# define Kilobytes(V) ((V)*1024LL)
-# define Megabytes(V) (Kilobytes(V)*1024LL)
-# define Gigabytes(V) (Megabytes(V)*1024LL)
-# define Terabytes(V) (Gigabytes(V)*1024LL)
-
-// DEBUG START
-# define ENABLE_DEBUG
-# ifdef  ENABLE_DEBUG
-#  define Assert(c,msg) if (!(c)) { fprintf(stderr, "[-] <ASSERTION ERROR> at line %d:  %s\n", __LINE__, msg); exit(1); }
-// NOTE(liam): force exit program. basically code should never reach this point.
-#  define Throw(msg) { fprintf(stderr, "[-] <THROW> at line %d: %s\n", __LINE__, msg); exit(1); }
-# else
-#  define ASSERT(c,msg)
-#  define Throw(msg) { exit(1); }
-# endif
-// DEBUG END
-
+} MemoryBlockFooter;
 
 typedef struct memory_arena {
     memory_index size;
     uint8* base;
     memory_index pos; // aka used memory idx
+
+    memory_index minimumBlockSize;
 
     uint32 tempCount;
 } Arena;
@@ -61,24 +36,34 @@ typedef struct memory_arena_temp {
     memory_index pos;
 } ArenaTemp;
 
-void ArenaAlloc(Arena*, memory_index, uint8*);
+void ArenaInit(Arena*, memory_index, void*);
+void ArenaInitBlock(Arena*, memory_index);
 Arena* ArenaMalloc(memory_index size);
 void ArenaFree(Arena*);
 
-void* ArenaPush(Arena*, memory_index);
-void* ArenaPushZero(Arena*, memory_index);
+void* ArenaPush(Arena*, memory_index, memory_index);
+void* ArenaCopy(memory_index, void*, Arena*);
+
+memory_index ArenaGetEffectiveSize(Arena* arena, memory_index sizeInit, memory_index alignment);
+memory_index ArenaGetAlignmentOffset(Arena* arena, memory_index alignment);
+memory_index ArenaGetRemainingSize(Arena* arena, memory_index alignment);
 
 // NOTE(liam): helper macros
-#define PushArray(arena, t, c) (t*)ArenaPush((arena),sizeof(t)*(c))
-#define PushStruct(arena, t) PushArray(arena, t, 1)
-#define PushArrayZero(arena, t, c) (t*)ArenaPushZero((arena),sizeof(t)*(c))
-#define PushStructZero(arena, t) PushArrayZero(arena, t, 1)
+#define PushArray(arena, t, c, ...) (t*)ArenaPush((arena),sizeof(t)*(c), ## __VA_ARGS__)
+#define PushStruct(arena, t, ...) PushArray(arena, t, 1, ## __VA_ARGS__)
+#define PushSize(arena, s, ...) ArenaPush((arena), (s), ## __VA_ARGS__)
+#define PushCopy(arena, s, src, ...) (ArenaCopy(s, src, ArenaPush(arena, s, ## __VA_ARGS__))
+/*#define PushArrayZero(arena, t, c) (t*)ArenaPushZero((arena),sizeof(t)*(c))*/
+/*#define PushStructZero(arena, t) PushArrayZero(arena, t, 1)*/
+void ArenaFillZero(memory_index size, void *ptr);
 
 void ArenaPop(Arena*, memory_index);
 uint64 ArenaGetPos(Arena*);
 
 void ArenaSetPos(Arena*, memory_index);
 void ArenaClear(Arena*);
+
+void SubArena(Arena* subArena, Arena* arena, memory_index size, memory_index alignment);
 
 ArenaTemp ArenaTempBegin(Arena*); // grabs arena's position
 void ArenaTempEnd(ArenaTemp);     // restores arena's position
@@ -87,24 +72,38 @@ void ArenaTempCheck(Arena*);
 ArenaTemp GetScratch(Arena*);
 #define FreeScratch(t) ArenaTempEnd(t)
 
-#endif
+#define ZeroStruct(in) ArenaFillZero(sizeof(in), &(in))
+#define ZeroArray(n, ptr) ArenaFillZero((n)*sizeof((ptr)[0]), (ptr))
 
-#ifdef ARENA_IMPLEMENTATION
-#include <string.h>
+inline void
+ArenaFillZero(memory_index size, void *ptr) // effectively memcpy
+{
+    uint8* byte = (uint8*) ptr;
+    while (size--) {
+        *byte++ = 0;
+    }
+}
 
 // NOTE(liam): does not inherently allocate memory.
 // Must be performed as user sees fit before call.
 inline void
-ArenaAlloc(Arena* arena, memory_index size, uint8* base_addr)
+ArenaInit(Arena* arena, memory_index size, void* base_addr)
 {
     arena->size = size;
+    arena->base = (uint8 *)base_addr;
     arena->pos = 0;
-    arena->base = base_addr;
-    if (!base_addr) {
-        // NOTE(liam): if NULL, auto-generate memory using malloc.
-        arena->base = (uint8*)a_malloc(size);
-    }
     arena->tempCount = 0;
+    arena->minimumBlockSize = 0;
+}
+
+inline void
+ArenaInitBlock(Arena* arena, memory_index minimumBlockSize)
+{
+    arena->size = 0;
+    arena->base = 0;
+    arena->pos  = 0;
+    arena->tempCount = 0;
+    arena->minimumBlockSize = minimumBlockSize;
 }
 
 // NOTE(liam): convenience arena wrapper that uses
@@ -113,7 +112,7 @@ inline Arena*
 ArenaMalloc(memory_index size)
 {
     Arena* arena = (Arena*)a_malloc(size);
-    ArenaAlloc(arena, size, (uint8*)malloc(size));
+    ArenaInit(arena, size, a_malloc(size));
 
     return(arena);
 }
@@ -131,27 +130,95 @@ ArenaFree(Arena* arena)
     }
 }
 
-inline void*
-ArenaPush(Arena* arena, memory_index size)
+inline memory_index
+ArenaGetAlignmentOffset(Arena* arena, memory_index alignment)
 {
-    Assert(arena->pos + size < arena->size, "requested alloc size exceeds arena size.")
-    void* res = arena->base + arena->pos;
-    arena->pos += size;
+    memory_index alignmentOffset = 0;
+
+    memory_index resPointer = (memory_index)arena->base + arena->pos;
+    memory_index alignmentMask = alignment - 1;
+    if (resPointer & alignmentMask)
+    {
+        alignmentOffset = alignment - (resPointer & alignmentMask);
+    }
+
+    return (alignmentOffset);
+}
+
+inline memory_index
+ArenaGetRemainingSize(Arena* arena, memory_index alignment)
+{
+    memory_index res = arena->size - (arena->pos + ArenaGetAlignmentOffset(arena, alignment));
+    return(res);
+}
+
+inline memory_index
+ArenaGetEffectiveSize(Arena* arena, memory_index sizeInit, memory_index alignment)
+{
+    memory_index size = sizeInit;
+
+    memory_index alignmentOffset = ArenaGetAlignmentOffset(arena, alignment);
+    size += alignmentOffset;
+
+    return(size);
+}
+
+inline bool32
+ArenaCanStoreSize(Arena* arena, memory_index sizeInit, memory_index alignment)
+{
+    if (!alignment) alignment = 4;
+
+    memory_index size = ArenaGetEffectiveSize(arena, sizeInit, alignment);
+    bool32 res = (arena->pos + size <= arena->size);
 
     return(res);
 }
 
 inline void*
-ArenaPushZero(Arena* arena, memory_index size)
+ArenaPush(Arena* arena, memory_index sizeInit, memory_index alignment)
 {
-    Assert(arena->pos + size < arena->size, "requested alloc size exceeds arena size.")
-    void* res = arena->base + arena->pos;
+    if (!alignment) alignment = 4;
+
+    memory_index size = ArenaGetEffectiveSize(arena, sizeInit, alignment);
+
+    /*Assert(arena->pos + size < arena->size, "requested alloc size exceeds arena size.")*/
+    if ((arena->pos + size) > arena->size)
+    {
+        if (!arena->minimumBlockSize)
+        {
+            // TODO(liam): tune block sizing
+            arena->minimumBlockSize = Megabytes(1);
+        }
+
+        // NOTE(liam): base should automatically align after allocating again.
+        size = sizeInit;
+        memory_index blockSize = Max(size, arena->minimumBlockSize);
+        arena->size = blockSize;
+        arena->base = (uint8*)AllocateMemory(blockSize);
+        arena->pos = 0;
+    }
+    Assert((arena->pos + size) <= arena->size, "new allocation of dynamic arena somehow failed...");
+
+    memory_index alignmentOffset = ArenaGetAlignmentOffset(arena, alignment);
+    void* res = (void*)(arena->base + arena->pos - alignmentOffset);
     arena->pos += size;
 
-    memset(res, 0, size);
+    Assert(size >= sizeInit, "requested alloc exceeds arena size after alignment.");
 
     return(res);
 }
+
+inline void
+SubArena(Arena* subArena, Arena* arena, memory_index size, memory_index alignment)
+{
+    if (!alignment) alignment = 16;
+
+    subArena->size = size;
+    subArena->base = (uint8*)PushSize(arena, size, alignment);
+    subArena->pos = 0;
+    subArena->tempCount = 0;
+}
+
 
 //TODO(liam): finish implementation
 /*void ArenaPop(Arena *arena, memory_index size) {*/
@@ -169,6 +236,7 @@ ArenaSetPos(Arena *arena, memory_index pos)
     Assert(pos <= arena->pos, "Setting position beyond current arena allocation.");
     arena->pos = pos;
 }
+
 
 // NOTE(liam): effectively resets the Arena.
 inline void
