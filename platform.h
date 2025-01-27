@@ -53,6 +53,7 @@ typedef int32       bool32;
 #endif
 
 #ifndef GIVEMEMALLOC
+
 void* AllocateMemory(memory_index);
 void DeallocateMemory(void*, memory_index);
 #else

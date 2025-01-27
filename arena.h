@@ -12,7 +12,7 @@
 // NOTE(liam): define 'GIVEMEMALLOC' if you want to allocate memory yourself.
 // afterwards, you have to define both 'a_alloc' and 'a_free', or
 // it will fallback to using the std lib malloc implementation.
-/*#define GIVEMEMALLOC*/
+#define GIVEMEMALLOC
 
 #include "platform.h"
 
@@ -202,13 +202,14 @@ ArenaPush(Arena* arena, memory_index sizeInit, memory_index alignment)
     /*Assert(arena->pos + size < arena->size, "requested alloc size exceeds arena size.")*/
     if ((arena->pos + size) > arena->size)
     {
+        printf("Making a new allocation!\n");
         if (!arena->minimumBlockSize)
         {
             // TODO(liam): tune block sizing
             arena->minimumBlockSize = Megabytes(1); // 1024 * 1024
         }
 
-        ArenaFooter save;
+        ArenaFooter save = {0};
         save.base = arena->base;
         save.size = arena->size;
         save.pos = arena->pos;
@@ -220,9 +221,12 @@ ArenaPush(Arena* arena, memory_index sizeInit, memory_index alignment)
         arena->base = (uint8*)AllocateMemory(blockSize);
         arena->pos = 0;
         arena->blockCount++;
+        printf("created new block!\n");
 
         ArenaFooter* footer = GetFooter(arena);
         *footer = save;
+
+        printf("mem footer base addr: %p\narena base addr: %p\n", save.base, arena->base);
     }
     Assert((arena->pos + size) <= arena->size, "new allocation of dynamic arena somehow failed...");
 

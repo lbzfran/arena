@@ -1,6 +1,8 @@
 
 #define ARENA_IMPLEMENTATION
-#include "../arena.h"
+
+#include <stdio.h>
+#include "../old_arena.h"
 
 #define AND &&
 #define OR ||
@@ -20,8 +22,8 @@ int main(void) {
 
     CheckExpr("Arena Allocation", local_arena);
 
-    int16* t1_a = PushStruct(local_arena, int16, 0);
-    int16* t1_b = PushStruct(local_arena, int16, 0);
+    int16* t1_a = PushStruct(local_arena, int16);
+    int16* t1_b = PushStruct(local_arena, int16);
 
     PrintAddr(&t1_a);
     PrintAddr(&t1_b);
@@ -39,15 +41,15 @@ int main(void) {
 
 
     /*printf("allocated after assign: %d\n", (*x));*/
-    int32* t2_a = PushStruct(local_arena, int32, 4);
-    int16* t2_b = PushStruct(local_arena, int16, 2);
-    int8* t2_c = PushStruct(local_arena, int8, 1);
-    int8* t2_d = PushStruct(local_arena, int8, 1);
-    int16* t2_e = PushStruct(local_arena, int16, 2);
-    int8* t2_f = PushStruct(local_arena, int8, 1);
-    int16* t2_g = PushStruct(local_arena, int16, 2);
-    int8* t2_h = PushStruct(local_arena, int8, 1);
-    int8* t2_i = PushStruct(local_arena, int8, 1);
+    int32* t2_a = PushStruct(local_arena, int32);
+    int16* t2_b = PushStruct(local_arena, int16);
+    int8* t2_c = PushStruct(local_arena, int8);
+    int8* t2_d = PushStruct(local_arena, int8);
+    int16* t2_e = PushStruct(local_arena, int16);
+    int8* t2_f = PushStruct(local_arena, int8);
+    int16* t2_g = PushStruct(local_arena, int16);
+    int8* t2_h = PushStruct(local_arena, int8);
+    int8* t2_i = PushStruct(local_arena, int8);
 
     CheckExpr("Multiple Arena Allocations with different types", local_arena->pos == 19);
 
@@ -71,13 +73,13 @@ int main(void) {
     memory_index t3_pos_before = local_arena->pos;
     ArenaTemp cow = GetScratch(local_arena);
 
-    PushStruct(local_arena, int64, 8);
-    PushStruct(local_arena, int64, 8);
-    PushStruct(local_arena, int32, 4);
-    PushStruct(local_arena, int64, 8);
-    PushStruct(local_arena, int32, 4);
-    PushStruct(local_arena, int64, 8);
-    PushStruct(local_arena, int32, 4);
+    PushStruct(local_arena, int64);
+    PushStruct(local_arena, int64);
+    PushStruct(local_arena, int32);
+    PushStruct(local_arena, int64);
+    PushStruct(local_arena, int32);
+    PushStruct(local_arena, int64);
+    PushStruct(local_arena, int32);
 
     FreeScratch(cow);
     CheckExpr("Recover Position after Allocating and Freeing Scratch Arena", local_arena->pos == t3_pos_before);
