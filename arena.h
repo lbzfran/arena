@@ -17,9 +17,12 @@
 #define a_realloc realloc
 #define a_free free
 
-typedef struct memory_block_footer {
-
-} MemoryBlockFooter;
+typedef struct memory_arena_footer {
+    uint8* base;
+    memory_index size;
+    memory_index pos;
+    memory_index padding;
+} ArenaFooter;
 
 typedef struct memory_arena {
     memory_index size;
@@ -28,11 +31,13 @@ typedef struct memory_arena {
 
     memory_index minimumBlockSize;
 
+    uint32 blockCount;
     uint32 tempCount;
 } Arena;
 
 typedef struct memory_arena_temp {
     Arena* arena;
+    uint8* base;
     memory_index pos;
 } ArenaTemp;
 
@@ -86,25 +91,30 @@ ArenaFillZero(memory_index size, void *ptr) // effectively memcpy
 
 // NOTE(liam): does not inherently allocate memory.
 // Must be performed as user sees fit before call.
+/*inline void*/
+/*ArenaInit(Arena* arena, memory_index size, void* base_addr)*/
+/*{*/
+/*    arena->size = size;*/
+/*    arena->base = (uint8 *)base_addr;*/
+/*    arena->pos = 0;*/
+/*    arena->tempCount = 0;*/
+/*    arena->minimumBlockSize = 0;*/
+/*}*/
 inline void
-ArenaInit(Arena* arena, memory_index size, void* base_addr)
+ArenaSetMinimumBlockSize(Arena* arena, memory_index minimumBlockSize)
 {
-    arena->size = size;
-    arena->base = (uint8 *)base_addr;
-    arena->pos = 0;
-    arena->tempCount = 0;
-    arena->minimumBlockSize = 0;
-}
-
-inline void
-ArenaInitBlock(Arena* arena, memory_index minimumBlockSize)
-{
-    arena->size = 0;
-    arena->base = 0;
-    arena->pos  = 0;
-    arena->tempCount = 0;
     arena->minimumBlockSize = minimumBlockSize;
 }
+
+/*inline void*/
+/*ArenaInitBlock(Arena* arena, memory_index minimumBlockSize)*/
+/*{*/
+/*    arena->size = 0;*/
+/*    arena->base = 0;*/
+/*    arena->pos  = 0;*/
+/*    arena->tempCount = 0;*/
+/*    arena->minimumBlockSize = minimumBlockSize;*/
+/*}*/
 
 // NOTE(liam): convenience arena wrapper that uses
 // malloc implementation defined by user (or stdlib).
@@ -174,6 +184,14 @@ ArenaCanStoreSize(Arena* arena, memory_index sizeInit, memory_index alignment)
     return(res);
 }
 
+inline memory_arena_footer*
+GetFooter(Arena* arena)
+{
+    ArenaFooter *res = (ArenaFooter*)(arena->base + arena->size);
+
+    return(res);
+}
+
 inline void*
 ArenaPush(Arena* arena, memory_index sizeInit, memory_index alignment)
 {
@@ -187,15 +205,24 @@ ArenaPush(Arena* arena, memory_index sizeInit, memory_index alignment)
         if (!arena->minimumBlockSize)
         {
             // TODO(liam): tune block sizing
-            arena->minimumBlockSize = Megabytes(1);
+            arena->minimumBlockSize = Megabytes(1); // 1024 * 1024
         }
+
+        ArenaFooter save;
+        save.base = arena->base;
+        save.size = arena->size;
+        save.pos = arena->pos;
 
         // NOTE(liam): base should automatically align after allocating again.
         size = sizeInit;
-        memory_index blockSize = Max(size, arena->minimumBlockSize);
-        arena->size = blockSize;
+        memory_index blockSize = Max(size + sizeof(memory_arena_footer), arena->minimumBlockSize);
+        arena->size = blockSize - sizeof(memory_arena_footer);
         arena->base = (uint8*)AllocateMemory(blockSize);
         arena->pos = 0;
+        arena->blockCount++;
+
+        ArenaFooter* footer = GetFooter(arena);
+        *footer = save;
     }
     Assert((arena->pos + size) <= arena->size, "new allocation of dynamic arena somehow failed...");
 
@@ -242,8 +269,10 @@ ArenaSetPos(Arena *arena, memory_index pos)
 inline void
 ArenaClear(Arena *arena)
 {
-    arena->pos = 0;
-    arena->tempCount = 0;
+    while (arena->blockCount > 0)
+    {
+        ArenaFreeLastBlock(arena);
+    }
 }
 
 // NOTE(liam): temporary memory.
@@ -253,6 +282,7 @@ ArenaTempBegin(Arena *arena)
     ArenaTemp res;
 
     res.arena = arena;
+    res.base = arena->base;
     res.pos = arena->pos;
 
     arena->tempCount++;
@@ -261,9 +291,30 @@ ArenaTempBegin(Arena *arena)
 }
 
 inline void
+ArenaFreeLastBlock(Arena* arena)
+{
+    void* freedBlock = arena->base;
+
+    ArenaFooter* footer = GetFooter(arena);
+
+    arena->base = footer->base;
+    arena->size = footer->size;
+    arena->pos  = footer->pos;
+
+    DeallocateMemory(freedBlock);
+
+    arena->blockCount--;
+}
+
+inline void
 ArenaTempEnd(ArenaTemp temp)
 {
     Arena* arena = temp.arena;
+
+    while(arena->base != temp.base)
+    {
+        ArenaFreeLastBlock(arena);
+    }
 
     Assert(arena->pos >= temp.pos, "Arena position is less than temporary memory's position. Likely user-coded error.");
     arena->pos = temp.pos;
@@ -272,7 +323,7 @@ ArenaTempEnd(ArenaTemp temp)
     arena->tempCount--;
 }
 
-// NOTE(liam): should call after temp use.
+// NOTE(liam): should call after finishing temp use.
 // need to make sure all temps are accounted for before
 // resuming allocations.
 inline void
