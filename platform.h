@@ -1,6 +1,8 @@
 #ifndef PLATFORM_H
 #define PLATFORM_H
 
+// NOTE(liam): Memory Allocation.
+
 # include <stdio.h>
 # include <stdint.h>
 # include <string.h>
@@ -29,6 +31,8 @@ typedef int32       bool32;
 // DEBUG START
 # define ENABLE_DEBUG
 # ifdef  ENABLE_DEBUG
+#  include <stdlib.h>
+// NOTE(liam): force exit if expression 'c' is false. Basically program-breaking error.
 #  define Assert(c,msg) if (!(c)) { fprintf(stderr, "[-] <ASSERTION ERROR> at line %d:  %s.\n", __LINE__, #msg); exit(1); }
 // NOTE(liam): force exit program. basically code should never reach this point.
 #  define Throw(msg) { fprintf(stderr, "[-] <THROW> at line %d: %s.\n", __LINE__, #msg); exit(1); }
@@ -38,16 +42,27 @@ typedef int32       bool32;
 # endif
 // DEBUG END
 
-struct Platform {
-    void* (*AllocateMemory)(memory_index);
-    void (*DeallocateMemory)(void*, memory_index);
-};
+/*struct Platform {*/
+/*    void* (*AllocateMemory)(memory_index);*/
+/*    void (*DeallocateMemory)(void*, memory_index);*/
+/*};*/
 
 // TODO(liam): figure out how to further abstract this;
 // see handmade hero: find platform layer, platform_allocate_memory, etc.
 /*#define PLATFORM_ALLOCATE_MEMORY(fn) fn()*/
+#endif
 
+#ifndef GIVEMEMALLOC
 void* AllocateMemory(memory_index);
 void DeallocateMemory(void*, memory_index);
-
+#else
+// MALLOC USERS HERE
+// NOTE(liam): assumes you defined both a_alloc and a_free
+# if !defined(a_alloc) || !defined(a_free)
+#  include <stdlib.h>
+#  define a_alloc malloc
+#  define a_free free
+# endif
+# define AllocateMemory(s) a_alloc((s))
+# define DeallocateMemory(ptr, s) a_free((ptr))
 #endif

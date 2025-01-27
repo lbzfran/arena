@@ -12,11 +12,11 @@ LDFLAGS := $(INC) $(LIB)
 FLAGS := $(CFLAGS) $(LDFLAGS)
 
 run: compile
-	./build/$(BIN)-linear
+	# ./build/$(BIN)-linear
 	./build/$(BIN)-dynamic
 
 compile:
-	cc -o "$(BUILD)/$(BIN)-linear" ./platform_linux.c $(TEST)/linear_alloc.c $(FLAGS)
+	# cc -o "$(BUILD)/$(BIN)-linear" ./platform_linux.c $(TEST)/linear_alloc.c $(FLAGS)
 	cc -o "$(BUILD)/$(BIN)-dynamic" ./platform_linux.c $(TEST)/dynamic_alloc.c $(FLAGS)
 
 clean:

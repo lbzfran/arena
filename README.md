@@ -1,7 +1,7 @@
 
 # Arena Allocator
 
-Standard Linear Arena Allocator written in c,
+Standard Dynamically Allocating Arena written in c,
 packaged in an stb-style header file.
 
 Unit test(s) available to compile and run using `make`.

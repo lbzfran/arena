@@ -1,21 +1,20 @@
 /*
  * ---------------
  * Liam Bagabag
- * Version: 2.0.0
+ * Version: 2.0.1
  * Requires: none (inline)
  * ---------------
  */
 #ifndef ARENA_H
 #define ARENA_H
 
-// PLATFORM-INDEPENDENT LAYER
-#include "platform.h"
+// COMPATIBILITY LAYER
+// NOTE(liam): define 'GIVEMEMALLOC' if you want to allocate memory yourself.
+// afterwards, you have to define both 'a_alloc' and 'a_free', or
+// it will fallback to using the std lib malloc implementation.
+/*#define GIVEMEMALLOC*/
 
-// DEFINE YOUR OWN MALLOC HERE.
-#include <stdlib.h>
-#define a_malloc malloc
-#define a_realloc realloc
-#define a_free free
+#include "platform.h"
 
 typedef struct memory_arena_footer {
     uint8* base;
@@ -41,17 +40,20 @@ typedef struct memory_arena_temp {
     memory_index pos;
 } ArenaTemp;
 
-void ArenaInit(Arena*, memory_index, void*);
-void ArenaInitBlock(Arena*, memory_index);
-Arena* ArenaMalloc(memory_index size);
-void ArenaFree(Arena*);
+/*void ArenaInit(Arena*, memory_index, void*);*/
+/*void ArenaInitBlock(Arena*, memory_index);*/
+/*Arena* ArenaMalloc(memory_index size);*/
+void ArenaFree(Arena);
 
 void* ArenaPush(Arena*, memory_index, memory_index);
 void* ArenaCopy(memory_index, void*, Arena*);
+ArenaFooter* GetFooter(Arena* arena);
 
 memory_index ArenaGetEffectiveSize(Arena* arena, memory_index sizeInit, memory_index alignment);
 memory_index ArenaGetAlignmentOffset(Arena* arena, memory_index alignment);
 memory_index ArenaGetRemainingSize(Arena* arena, memory_index alignment);
+
+void ArenaFreeLastBlock(Arena* arena);
 
 // NOTE(liam): helper macros
 #define PushArray(arena, t, c, ...) (t*)ArenaPush((arena),sizeof(t)*(c), ## __VA_ARGS__)
@@ -65,6 +67,7 @@ void ArenaFillZero(memory_index size, void *ptr);
 void ArenaPop(Arena*, memory_index);
 uint64 ArenaGetPos(Arena*);
 
+void ArenaSetMinimumBlockSize(Arena* arena, memory_index minimumBlockSize);
 void ArenaSetPos(Arena*, memory_index);
 void ArenaClear(Arena*);
 
@@ -118,26 +121,23 @@ ArenaSetMinimumBlockSize(Arena* arena, memory_index minimumBlockSize)
 
 // NOTE(liam): convenience arena wrapper that uses
 // malloc implementation defined by user (or stdlib).
-inline Arena*
-ArenaMalloc(memory_index size)
-{
-    Arena* arena = (Arena*)a_malloc(size);
-    ArenaInit(arena, size, a_malloc(size));
-
-    return(arena);
-}
+/*inline Arena**/
+/*ArenaMalloc(memory_index size)*/
+/*{*/
+/*    Arena* arena = (Arena*)a_malloc(size);*/
+/*    ArenaInit(arena, size, a_malloc(size));*/
+/**/
+/*    return(arena);*/
+/*}*/
 
 // NOTE(liam): this can be potentially skipped if you're
 // using other forms of memory allocation (VirtualAlloc, mmap).
 // A good way to check if you need it is if you used the
 // ArenaMalloc function for allocation.
 inline void
-ArenaFree(Arena* arena)
+ArenaFree(Arena arena)
 {
-    if (arena) {
-        a_free(arena->base);
-        a_free(arena);
-    }
+    DeallocateMemory(arena.base, arena.size);
 }
 
 inline memory_index
@@ -184,7 +184,7 @@ ArenaCanStoreSize(Arena* arena, memory_index sizeInit, memory_index alignment)
     return(res);
 }
 
-inline memory_arena_footer*
+inline ArenaFooter*
 GetFooter(Arena* arena)
 {
     ArenaFooter *res = (ArenaFooter*)(arena->base + arena->size);
@@ -215,8 +215,8 @@ ArenaPush(Arena* arena, memory_index sizeInit, memory_index alignment)
 
         // NOTE(liam): base should automatically align after allocating again.
         size = sizeInit;
-        memory_index blockSize = Max(size + sizeof(memory_arena_footer), arena->minimumBlockSize);
-        arena->size = blockSize - sizeof(memory_arena_footer);
+        memory_index blockSize = Max(size + sizeof(struct memory_arena_footer), arena->minimumBlockSize);
+        arena->size = blockSize - sizeof(struct memory_arena_footer);
         arena->base = (uint8*)AllocateMemory(blockSize);
         arena->pos = 0;
         arena->blockCount++;
@@ -294,6 +294,7 @@ inline void
 ArenaFreeLastBlock(Arena* arena)
 {
     void* freedBlock = arena->base;
+    memory_index freedBlockSize = arena->size;
 
     ArenaFooter* footer = GetFooter(arena);
 
@@ -301,7 +302,7 @@ ArenaFreeLastBlock(Arena* arena)
     arena->size = footer->size;
     arena->pos  = footer->pos;
 
-    DeallocateMemory(freedBlock);
+    DeallocateMemory(freedBlock, freedBlockSize);
 
     arena->blockCount--;
 }
