@@ -1,7 +1,7 @@
 /*
  * ---------------
  * Liam Bagabag
- * Version: 2.1.0
+ * Version: 2.1
  * Requires: none (inline)
  * ---------------
  */
@@ -350,4 +350,4 @@ GetScratch(Arena* arena)
     return temp;
 }
 
-#endif // ARENA_IMPLEMENTATION
+#endif //ARENA_H

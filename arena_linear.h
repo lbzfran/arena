@@ -1,7 +1,7 @@
 /*
  * ---------------
  * Liam Bagabag
- * Version: 1.0.1
+ * Version: 1.2
  * requires: ARENA_IMPLEMENTATION
  * ---------------
  */
@@ -9,15 +9,8 @@
 #define ARENA_H
 
 // PLATFORM-INDEPENDENT
-#include "base.h"
-
-// DEFINE YOUR OWN MALLOC HERE.
-#ifndef a_alloc
-# include <stdlib.h>
-# define a_alloc malloc
-# define a_realloc realloc
-# define a_free free
-#endif
+#define GIVEMEMALLOC
+#include "platform.h"
 
 typedef struct memory_arena {
     memory_index size;
