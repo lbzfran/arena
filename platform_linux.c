@@ -2,7 +2,6 @@
 #include "platform.h"
 
 #include <sys/mman.h>
-#include <pthread.h>
 
 /*typedef struct memory_block {*/
 /*    struct memory_block* prev;*/
@@ -31,6 +30,12 @@ void* AllocateMemory(memory_index size)
         mmap(NULL, size,
             PROT_READ | PROT_WRITE,
             MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+
+    if (res == MAP_FAILED)
+    {
+        perror("Failed Allocation.");
+        return NULL;
+    }
     /*Assert(block, "");*/
     /*void* res = block + 1;*/
     /*memory_block* sentinel = &memoryState.sentinel;*/
@@ -55,5 +60,8 @@ void DeallocateMemory(void* ptr, memory_index size)
     /*pthread_mutex_unlock(&memoryState.mutex);*/
 
     bool32 res = munmap(ptr, size);
-    Assert(!res, "Failed to deallocate memory.");
+    if (res == -1)
+    {
+        perror("Failed Deallocation.");
+    }
 }

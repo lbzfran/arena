@@ -10,9 +10,9 @@ int main(void)
     *t1_a = 1112;
     /*printf("arena blocks BEFORE: %d\n", arena.blockCount);*/
     printf("ptr of arena: %p\n", (void*)(arena->base + arena->pos));
-    printf("%p = %d\n", (void*)t1_a, *t1_a);
+    printf("a start: %p = %d\n", (void*)t1_a, *t1_a);
     /*printf("%p = %d\n", (void*)t1_a, *t1_a);*/
-    for (size_t i = 0; i < 128; i++)
+    for (size_t i = 0; i < 512; i++)
     {
         uint16* t1_b = PushStruct(arena, uint16);
         *t1_b = i;
@@ -21,17 +21,16 @@ int main(void)
         }
         if (i == 127) printf("%p\n", (void*)t1_b);
     }
-    printf("%p = %d\n", (void*)t1_a, *t1_a);
+    printf("a after mass alloc: %p = %d\n", (void*)t1_a, *t1_a);
     uint16* t1_c = PushStruct(arena, uint16);
 
-    printf("%p = %d\n", (void*)t1_a, *t1_a);
-    printf("%p = %d\n", (void*)t1_c, *t1_c);
+    printf("a after alloc: %p = %d\n", (void*)t1_a, *t1_a);
+    printf("c: %p = %d\n", (void*)t1_c, *t1_c);
 
     /*printf("arena blocks AFTER: %d\n", arena.blockCount);*/
     printf("ptr of arena: %p\n", (void*)(arena->base + arena->pos));
 
     ArenaFree(arena);
 
-    //TODO(liam): implement deallocation caused by Pushing into arena dynamically.
     return 0;
 }

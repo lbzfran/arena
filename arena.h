@@ -1,7 +1,7 @@
 /*
  * ---------------
  * Liam Bagabag
- * Version: 2.0.1
+ * Version: 2.1.0
  * Requires: none (inline)
  * ---------------
  */
@@ -12,9 +12,11 @@
 // NOTE(liam): define 'GIVEMEMALLOC' if you want to allocate memory yourself.
 // afterwards, you have to define both 'a_alloc' and 'a_free', or
 // it will fallback to using the std lib malloc implementation.
-#define GIVEMEMALLOC
+/*#define GIVEMEMALLOC*/
 
 #include "platform.h"
+
+#include <stdalign.h>
 
 typedef struct memory_arena_footer {
     uint8* base;
@@ -24,8 +26,8 @@ typedef struct memory_arena_footer {
 } ArenaFooter;
 
 typedef struct memory_arena {
-    memory_index size;
     uint8* base;
+    memory_index size;
     memory_index pos; // aka used memory idx
 
     memory_index minimumBlockSize;
@@ -38,12 +40,10 @@ typedef struct memory_arena_temp {
     Arena* arena;
     uint8* base;
     memory_index pos;
+    memory_index padding;
 } ArenaTemp;
 
-/*void ArenaInit(Arena*, memory_index, void*);*/
-/*void ArenaInitBlock(Arena*, memory_index);*/
-/*Arena* ArenaMalloc(memory_index size);*/
-void ArenaFree(Arena);
+/*void ArenaFree(Arena);*/
 
 void* ArenaPush(Arena*, memory_index, memory_index);
 void* ArenaCopy(memory_index, void*, Arena*);
@@ -53,28 +53,33 @@ memory_index ArenaGetEffectiveSize(Arena* arena, memory_index sizeInit, memory_i
 memory_index ArenaGetAlignmentOffset(Arena* arena, memory_index alignment);
 memory_index ArenaGetRemainingSize(Arena* arena, memory_index alignment);
 
-void ArenaFreeLastBlock(Arena* arena);
+void ArenaFreeCurrentBlock(Arena* arena);
 
-// NOTE(liam): helper macros
-#define PushArray(arena, t, c, ...) (t*)ArenaPush((arena),sizeof(t)*(c), ## __VA_ARGS__)
-#define PushStruct(arena, t, ...) PushArray(arena, t, 1, ## __VA_ARGS__)
-#define PushSize(arena, s, ...) ArenaPush((arena), (s), ## __VA_ARGS__)
-#define PushCopy(arena, s, src, ...) (ArenaCopy(s, src, ArenaPush(arena, s, ## __VA_ARGS__))
-/*#define PushArrayZero(arena, t, c) (t*)ArenaPushZero((arena),sizeof(t)*(c))*/
-/*#define PushStructZero(arena, t) PushArrayZero(arena, t, 1)*/
+// NOTE(liam): auto-aligned Push Instructions.
+#define PushArray(arena, t, c) (t*)ArenaPush((arena),sizeof(t)*(c), alignof(t))
+#define PushStruct(arena, t) PushArray(arena, t, 1)
+#define PushSize(arena, s) ArenaPush((arena), (s), alignof(s))
+#define PushCopy(arena, s, src) (ArenaCopy(s, src, ArenaPush(arena, s, alignof(s)))
+
+// NOTE(liam): Set Alignment Manually.
+#define PushArrayAlign(arena, t, c, ...) (t*)ArenaPush((arena),sizeof(t)*(c), ## __VA_ARGS__)
+#define PushStructAlign(arena, t, ...) PushArray(arena, t, ## __VA_ARGS__)
+#define PushSizeAlign(arena, s, ...) ArenaPush((arena), (s), ## __VA_ARGS__)
+#define PushCopyAlign(arena, s, src, ...) (ArenaCopy(s, src, ArenaPush(arena, s, ## __VA_ARGS__))
 void ArenaFillZero(memory_index size, void *ptr);
 
-void ArenaPop(Arena*, memory_index);
+/*void ArenaPop(Arena*, memory_index);*/
 uint64 ArenaGetPos(Arena*);
 
 void ArenaSetMinimumBlockSize(Arena* arena, memory_index minimumBlockSize);
 void ArenaSetPos(Arena*, memory_index);
 void ArenaClear(Arena*);
+#define ArenaFree(arena) ArenaClear(arena);
 
 void SubArena(Arena* subArena, Arena* arena, memory_index size, memory_index alignment);
 
-ArenaTemp ArenaTempBegin(Arena*); // grabs arena's position
-void ArenaTempEnd(ArenaTemp);     // restores arena's position
+ArenaTemp ArenaTempBegin(Arena*);
+void ArenaTempEnd(ArenaTemp);
 void ArenaTempCheck(Arena*);
 
 ArenaTemp GetScratch(Arena*);
@@ -134,11 +139,12 @@ ArenaSetMinimumBlockSize(Arena* arena, memory_index minimumBlockSize)
 // using other forms of memory allocation (VirtualAlloc, mmap).
 // A good way to check if you need it is if you used the
 // ArenaMalloc function for allocation.
-inline void
-ArenaFree(Arena arena)
-{
-    DeallocateMemory(arena.base, arena.size);
-}
+/*inline void*/
+/*ArenaFree(Arena* arena)*/
+/*{*/
+/*    ArenaClear(arena);*/
+/*    *arena = {0};*/
+/*}*/
 
 inline memory_index
 ArenaGetAlignmentOffset(Arena* arena, memory_index alignment)
@@ -152,7 +158,7 @@ ArenaGetAlignmentOffset(Arena* arena, memory_index alignment)
         alignmentOffset = alignment - (resPointer & alignmentMask);
     }
 
-    return (alignmentOffset);
+    return(alignmentOffset);
 }
 
 inline memory_index
@@ -197,12 +203,13 @@ ArenaPush(Arena* arena, memory_index sizeInit, memory_index alignment)
 {
     if (!alignment) alignment = 4;
 
+    //NOTE(liam): rounds allocation up to set align properly.
     memory_index size = ArenaGetEffectiveSize(arena, sizeInit, alignment);
 
     /*Assert(arena->pos + size < arena->size, "requested alloc size exceeds arena size.")*/
     if ((arena->pos + size) > arena->size)
     {
-        printf("Making a new allocation!\n");
+        // NOTE(liam): if min block size was never set, set it.
         if (!arena->minimumBlockSize)
         {
             // TODO(liam): tune block sizing
@@ -221,12 +228,9 @@ ArenaPush(Arena* arena, memory_index sizeInit, memory_index alignment)
         arena->base = (uint8*)AllocateMemory(blockSize);
         arena->pos = 0;
         arena->blockCount++;
-        printf("created new block!\n");
 
         ArenaFooter* footer = GetFooter(arena);
         *footer = save;
-
-        printf("mem footer base addr: %p\narena base addr: %p\n", save.base, arena->base);
     }
     Assert((arena->pos + size) <= arena->size, "new allocation of dynamic arena somehow failed...");
 
@@ -245,7 +249,7 @@ SubArena(Arena* subArena, Arena* arena, memory_index size, memory_index alignmen
     if (!alignment) alignment = 16;
 
     subArena->size = size;
-    subArena->base = (uint8*)PushSize(arena, size, alignment);
+    subArena->base = (uint8*)PushSizeAlign(arena, size, alignment);
     subArena->pos = 0;
     subArena->tempCount = 0;
 }
@@ -273,9 +277,9 @@ ArenaSetPos(Arena *arena, memory_index pos)
 inline void
 ArenaClear(Arena *arena)
 {
-    while (arena->blockCount > 0)
+    while (arena->blockCount)
     {
-        ArenaFreeLastBlock(arena);
+        ArenaFreeCurrentBlock(arena);
     }
 }
 
@@ -295,7 +299,7 @@ ArenaTempBegin(Arena *arena)
 }
 
 inline void
-ArenaFreeLastBlock(Arena* arena)
+ArenaFreeCurrentBlock(Arena* arena)
 {
     void* freedBlock = arena->base;
     memory_index freedBlockSize = arena->size;
@@ -318,7 +322,7 @@ ArenaTempEnd(ArenaTemp temp)
 
     while(arena->base != temp.base)
     {
-        ArenaFreeLastBlock(arena);
+        ArenaFreeCurrentBlock(arena);
     }
 
     Assert(arena->pos >= temp.pos, "Arena position is less than temporary memory's position. Likely user-coded error.");
