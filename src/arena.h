@@ -1,20 +1,22 @@
 /*
  * ---------------
  * Liam Bagabag
- * Version: 2.1
+ * Version: 2.2
  * Requires: platform.h
  * ---------------
  */
 #ifndef ARENA_H
 #define ARENA_H
 
-// COMPATIBILITY LAYER
-// NOTE(liam): define 'GIVEMEMALLOC' if you want to allocate memory yourself.
+// NOTE(liam): define 'ARENA_USEMALLOC' if you want to allocate memory yourself.
 // afterwards, you have to define both 'a_alloc' and 'a_free', or
 // it will fallback to using the std lib malloc implementation.
-/*#define GIVEMEMALLOC*/
+// NOTE(liam): when not defining 'ARENA_USEMALLOC', you will need to compile
+// the respective c file (arena_memory_<linux/win32>.c) with your project,
+// or define the respective functions yourself.
+/*#define ARENA_USEMALLOC*/
 
-#include "platform.h"
+#include "arena_memory.h"
 
 #include <stdalign.h>
 
@@ -43,8 +45,6 @@ typedef struct memory_arena_temp {
     memory_index padding;
 } ArenaTemp;
 
-/*void ArenaFree(Arena);*/
-
 void* ArenaPush(Arena*, memory_index, memory_index);
 void* ArenaCopy(memory_index, void*, Arena*);
 ArenaFooter* GetFooter(Arena* arena);
@@ -68,7 +68,6 @@ void ArenaFreeCurrentBlock(Arena* arena);
 #define PushCopyAlign(arena, s, src, ...) (ArenaCopy(s, src, ArenaPush(arena, s, ## __VA_ARGS__))
 void ArenaFillZero(memory_index size, void *ptr);
 
-/*void ArenaPop(Arena*, memory_index);*/
 uint64 ArenaGetPos(Arena*);
 
 void ArenaSetMinimumBlockSize(Arena* arena, memory_index minimumBlockSize);
@@ -82,8 +81,8 @@ ArenaTemp ArenaTempBegin(Arena*);
 void ArenaTempEnd(ArenaTemp);
 void ArenaTempCheck(Arena*);
 
-ArenaTemp GetScratch(Arena*);
-#define FreeScratch(t) ArenaTempEnd(t)
+ArenaTemp ArenaScratchCreate(Arena*);
+#define ArenaScratchFree(t) ArenaTempEnd(t)
 
 #define ZeroStruct(in) ArenaFillZero(sizeof(in), &(in))
 #define ZeroArray(n, ptr) ArenaFillZero((n)*sizeof((ptr)[0]), (ptr))
@@ -97,33 +96,11 @@ ArenaFillZero(memory_index size, void *ptr) // effectively memcpy
     }
 }
 
-// NOTE(liam): does not inherently allocate memory.
-// Must be performed as user sees fit before call.
-/*inline void*/
-/*ArenaInit(Arena* arena, memory_index size, void* base_addr)*/
-/*{*/
-/*    arena->size = size;*/
-/*    arena->base = (uint8 *)base_addr;*/
-/*    arena->pos = 0;*/
-/*    arena->tempCount = 0;*/
-/*    arena->minimumBlockSize = 0;*/
-/*}*/
 inline void
 ArenaSetMinimumBlockSize(Arena* arena, memory_index minimumBlockSize)
 {
     arena->minimumBlockSize = minimumBlockSize;
 }
-
-// NOTE(liam): this can be potentially skipped if you're
-// using other forms of memory allocation (VirtualAlloc, mmap).
-// A good way to check if you need it is if you used the
-// ArenaMalloc function for allocation.
-/*inline void*/
-/*ArenaFree(Arena* arena)*/
-/*{*/
-/*    ArenaClear(arena);*/
-/*    *arena = {0};*/
-/*}*/
 
 inline memory_index
 ArenaGetAlignmentOffset(Arena* arena, memory_index alignment)
@@ -234,23 +211,9 @@ SubArena(Arena* subArena, Arena* arena, memory_index size, memory_index alignmen
 }
 
 
-//TODO(liam): finish implementation
+//TODO(liam): finish implementation; idk if i should support this feature or not.
 /*void ArenaPop(Arena *arena, memory_index size) {*/
 /*}*/
-
-inline uint64
-ArenaGetPos(Arena *arena)
-{
-    return(arena->pos);
-}
-
-inline void
-ArenaSetPos(Arena *arena, memory_index pos)
-{
-    Assert(pos <= arena->pos, "Setting position beyond current arena allocation.");
-    arena->pos = pos;
-}
-
 
 // NOTE(liam): effectively resets the Arena.
 inline void
@@ -321,8 +284,9 @@ ArenaTempCheck(Arena* arena)
 }
 
 inline ArenaTemp
-GetScratch(Arena* arena)
+ArenaScratchCreate(Arena* arena)
 {
+    //TODO(liam): replace assertion.
     Assert(arena->pos + sizeof(ArenaTemp) <= arena->size, "requested temp alloc exceeds arena size.");
 
     ArenaTemp temp = ArenaTempBegin(arena);

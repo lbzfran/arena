@@ -1,5 +1,5 @@
 #define ARENA_IMPLEMENTATION
-#include "../arena.h"
+#include "../src/arena.h"
 
 // TODO(liam): some alignment issue going on where pointers are getting
 // overwritten somehow. need to look into it.

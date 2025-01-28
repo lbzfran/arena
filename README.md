@@ -1,7 +1,7 @@
 
 # Arena Allocator
 
-Standard Allocation Arena written in C,
+Standard Dynamically Allocating Arena written in C,
 packaged in an stb-style header file.
 
 Unit test(s) available to compile and run using `make`.
@@ -56,6 +56,34 @@ int **b = PushArrayZero(arena, int, 12);
 /* Free the arena. */
 ArenaFree(arena);
 ```
+
+# General Observations
+
+Two different versions of the arena.h were provided.
+
+The stb file relies on some form of malloc for its implementation,
+while the files found in src is able to switch between malloc and
+its own implementation. This implementation requires system calls
+specific to its OS, which is why an additional layer (arena_memory.c)
+is required to interface.
+
+The two arena.h files are otherwise the same.
+
+# How do I use this?
+
+The stb file is the most portable option.
+Simply copy and paste the file into your project and
+include it in your source files to start using it.
+
+Don't forget the define the implementation!
+If you're confused, see: https://github.com/nothings/stb/blob/master/docs/stb_howto.txt.
+```c
+#define ARENA_IMPLEMENTATION
+#include "arena.h"
+```
+
+The version in the src directory is more for my own development,
+but is here for reference.
 
 # Note on header file versioning
 

@@ -2,7 +2,7 @@
 #define ARENA_IMPLEMENTATION
 
 #include <stdio.h>
-#include "../arena_linear.h"
+#include "../src/arena_linear.h"
 
 #define AND &&
 #define OR ||

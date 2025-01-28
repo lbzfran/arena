@@ -1,16 +1,15 @@
 /*
  * ---------------
  * Liam Bagabag
- * Version: 1.2
+ * Version: 1.3
  * requires: ARENA_IMPLEMENTATION
  * ---------------
  */
 #ifndef ARENA_H
 #define ARENA_H
 
-// PLATFORM-INDEPENDENT
-#define GIVEMEMALLOC
-#include "platform.h"
+#define ARENA_USE_MALLOC
+#include "arena_memory.h"
 
 typedef struct memory_arena {
     memory_index size;

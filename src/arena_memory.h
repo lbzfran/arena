@@ -1,5 +1,5 @@
-#ifndef PLATFORM_H
-#define PLATFORM_H
+#ifndef ARENA_MEMORY_H
+#define ARENA_MEMORY_H
 
 // NOTE(liam): Memory Allocation.
 
@@ -42,28 +42,28 @@ typedef int32       bool32;
 # endif
 // DEBUG END
 
+// TODO(liam): figure out how to further abstract this;
+// see handmade hero: find platform layer, platform_allocate_memory, etc.
+/*#define PLATFORM_ALLOCATE_MEMORY(fn) fn()*/
 /*struct Platform {*/
 /*    void* (*AllocateMemory)(memory_index);*/
 /*    void (*DeallocateMemory)(void*, memory_index);*/
 /*};*/
 
-// TODO(liam): figure out how to further abstract this;
-// see handmade hero: find platform layer, platform_allocate_memory, etc.
-/*#define PLATFORM_ALLOCATE_MEMORY(fn) fn()*/
-#endif
-
-#ifndef GIVEMEMALLOC
-
+#ifndef ARENA_USEMALLOC
+// NOTE(liam): likely do not modify this.
 void* AllocateMemory(memory_index);
 void DeallocateMemory(void*, memory_index);
 #else
-// MALLOC USERS HERE
-// NOTE(liam): assumes you defined both a_alloc and a_free
 # if !defined(a_alloc) || !defined(a_free)
 #  include <stdlib.h>
 #  define a_alloc malloc
 #  define a_free free
 # endif
+#
 # define AllocateMemory(s) a_alloc((s))
 # define DeallocateMemory(ptr, s) a_free((ptr))
 #endif
+
+#endif //ARENA_MEMORY_H
+

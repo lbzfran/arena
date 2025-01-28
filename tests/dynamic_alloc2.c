@@ -1,5 +1,5 @@
 #define ARENA_IMPLEMENTATION
-#include "../old_arena.h"
+#include "../src/arena_linear.h"
 
 int main(void)
 {
