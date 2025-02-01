@@ -1,15 +1,15 @@
 /*
  * ---------------
  * Liam Bagabag
- * Version: B2.2
- * Requires: none (inline)
+ * Version: B2.3
+ * Requires: none (define ARENA_IMPLEMENTATION)
  * ---------------
  */
 #ifndef ARENA_H
 #define ARENA_H
 
 // NOTE(liam): you have to define both 'a_alloc' and 'a_free', or
-// it will fallback to using the std lib malloc implementation.
+// arena will fallback to using the std lib malloc implementation.
 /*#define a_alloc ...*/
 /*#define a_free ...*/
 
@@ -296,7 +296,7 @@ inline void
 ArenaFreeCurrentBlock(Arena* arena)
 {
     void* freedBlock = arena->base;
-    memory_index freedBlockSize = arena->size;
+    memory_index __attribute__((unused)) freedBlockSize = arena->size;
 
     ArenaFooter* footer = GetFooter(arena);
 
