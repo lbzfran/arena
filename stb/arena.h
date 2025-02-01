@@ -251,6 +251,18 @@ ArenaPush(Arena* arena, memory_index sizeInit, memory_index alignment)
     return(res);
 }
 
+inline void*
+ArenaCopy(memory_index size, void* src, void* dst)
+{
+    u8* srcPos = (u8*)src;
+    u8* dstPos = (u8*)dst;
+    while (size--)
+    {
+        *dstPos++ = *srcPos++;
+    }
+    return(dst);
+}
+
 inline void
 SubArena(Arena* subArena, Arena* arena, memory_index size, memory_index alignment)
 {
