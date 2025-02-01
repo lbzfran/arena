@@ -2,14 +2,14 @@
  * ---------------
  * Liam Bagabag
  * Version: B2.3
- * Requires: none (define ARENA_IMPLEMENTATION)
+ * Requires: none (inline)
  * ---------------
  */
 #ifndef ARENA_H
 #define ARENA_H
 
 // NOTE(liam): you have to define both 'a_alloc' and 'a_free', or
-// arena will fallback to using the std lib malloc implementation.
+// it will fallback to using the std lib malloc implementation.
 /*#define a_alloc ...*/
 /*#define a_free ...*/
 
@@ -94,7 +94,7 @@ typedef struct memory_arena_temp {
 } ArenaTemp;
 
 void* ArenaPush(Arena*, memory_index, memory_index);
-void* ArenaCopy(memory_index, void*, Arena*);
+void* ArenaCopy(memory_index, void*, void*);
 ArenaFooter* GetFooter(Arena* arena);
 
 memory_index ArenaGetEffectiveSize(Arena* arena, memory_index sizeInit, memory_index alignment);
@@ -107,13 +107,13 @@ void ArenaFreeCurrentBlock(Arena* arena);
 #define PushArray(arena, t, c) (t*)ArenaPush((arena),sizeof(t)*(c), alignof(t))
 #define PushStruct(arena, t) PushArray(arena, t, 1)
 #define PushSize(arena, s) ArenaPush((arena), (s), alignof(s))
-#define PushCopy(arena, s, src) (ArenaCopy(s, src, ArenaPush(arena, s, alignof(s)))
+#define PushCopy(arena, s, src) ArenaCopy(s, src, ArenaPush(arena, s, alignof(s)))
 
 // NOTE(liam): Set Alignment Manually.
 #define PushArrayAlign(arena, t, c, ...) (t*)ArenaPush((arena),sizeof(t)*(c), ## __VA_ARGS__)
 #define PushStructAlign(arena, t, ...) PushArray(arena, t, ## __VA_ARGS__)
 #define PushSizeAlign(arena, s, ...) ArenaPush((arena), (s), ## __VA_ARGS__)
-#define PushCopyAlign(arena, s, src, ...) (ArenaCopy(s, src, ArenaPush(arena, s, ## __VA_ARGS__))
+#define PushCopyAlign(arena, s, src, ...) ArenaCopy(s, src, ArenaPush(arena, s, ## __VA_ARGS__))
 void ArenaFillZero(memory_index size, void *ptr);
 
 uint64 ArenaGetPos(Arena*);
@@ -254,8 +254,8 @@ ArenaPush(Arena* arena, memory_index sizeInit, memory_index alignment)
 inline void*
 ArenaCopy(memory_index size, void* src, void* dst)
 {
-    u8* srcPos = (u8*)src;
-    u8* dstPos = (u8*)dst;
+    uint8* srcPos = (uint8*)src;
+    uint8* dstPos = (uint8*)dst;
     while (size--)
     {
         *dstPos++ = *srcPos++;
